@@ -20,6 +20,8 @@ from matplotlib import cm
 
 import math
 
+from timeit import default_timer as timer 
+
 def find_critical_points(crit, minimizer_bounds, data):
     crit_points = []
     for x_guess, y_guess in data:
@@ -57,7 +59,7 @@ def find_saddle_point(Hessian_det, crit_points, data):
     
     return saddle_point
 
-def crop_with_radius(origin, mesh, points, radius=3):
+def crop_with_radius_dijkstra(origin, mesh, points, radius=3):
     # crop around origin and return points within given radius
     points_cropped = []
     origin_index = mesh.find_closest_point(origin)
@@ -76,6 +78,19 @@ def crop_with_radius(origin, mesh, points, radius=3):
                 points_cropped.append(point)
         except:
             continue
+
+    return points_cropped
+
+def crop_with_radius_euclidean(origin, points, radius=3):
+    # crop around origin and return points within given radius
+    points_cropped = []
+    for point in points:
+        # find distance to all points using euclidean measurements
+        # and filter out points further than 3mm
+        difference = origin - point
+        distance = np.sqrt(np.dot(difference, difference))
+        if (distance < radius):
+            points_cropped.append(point)
 
     return points_cropped
 
@@ -234,6 +249,9 @@ def main():
     y_data = y_data - y_shift
     z_data = z_data - z_shift
 
+    print("Number of points in input mesh: {}".format(points.shape))
+    print("Number of points in input mesh: {}".format(x_data.size))
+
     # here a non-linear surface fit is made with scipy's curve_fit()
     fittedParameters, pcov = scipy.optimize.curve_fit(func, [x_data, y_data], z_data, method='lm', maxfev = 50000)
     fitted_z_data = func([x_data, y_data], *fittedParameters)
@@ -241,6 +259,7 @@ def main():
     print("RMSE between original surface and fitted polynomial: {}".format(error))
 
     # Sympy differential equations
+    start_time = timer()
     print("Computing up partial derivatives and parametrizing surface...")
     x, y = sp.symbols('x y')
     expression = func([x, y], *fittedParameters)
@@ -249,6 +268,7 @@ def main():
     fxx = sp.diff(fx, x)
     fyy = sp.diff(fy, y)
     fxy = sp.diff(fx, y)
+    print('Time taken: {}s'.format(timer()-start_time))
 
     # parametrize for curvature computations later
     s,t = sp.symbols('s t')
@@ -286,17 +306,20 @@ def main():
     
     # x_range = np.linspace(min(x_data), max(x_data), num=100)
     # y_range = np.linspace(min(y_data), max(y_data), num=100)
+    start_time = timer()
     print("Computing crtical points across surface...")
     minimizer_bounds = [(min(x_data), max(x_data)), (min(y_data), max(y_data))]
     crit_points = find_critical_points(crit, minimizer_bounds, np.c_[x_data, y_data])
 
     Hessian = sp.Matrix([[fxx, fxy], [fxy, fyy]])
     Hessian_det = Hessian.det()
+    print('Time taken: {}s'.format(timer()-start_time))
 
     # x_mid = (max(x_data)+min(x_data))/2
     # y_mid = (max(y_data)+min(y_data))/2
     # z_mid = (max(z_data)+min(z_data))/2
 
+    start_time = timer()
     print("Finding saddle point on surface...")
     saddle_point = find_saddle_point(Hessian_det, crit_points, np.c_[x_data, y_data])
     if(len(saddle_point) > 0):
@@ -305,6 +328,7 @@ def main():
     else:
         # exit if no saddle point was found
         raise ValueError("Saddle point could not be computed on given surface.")
+    print('Time taken: {}s'.format(timer()-start_time))
 
     plotter = pv.Plotter()
     plotter.show_axes()
@@ -317,8 +341,8 @@ def main():
     c.subdivide(3)
     c.cluster(10000)
     mesh_fitted = c.create_mesh()
-    # plotter.add_mesh(mesh_fitted, show_edges=True, color="blue")
-    # plotter.add_points(np.array([saddle_point]), render_points_as_spheres=True, point_size = 30, color="orange")
+    plotter.add_mesh(mesh_fitted, show_edges=True, color="blue")
+    plotter.add_points(np.array([saddle_point]), render_points_as_spheres=True, point_size = 30, color="orange")
 
     points = np.c_[x_data, y_data, z_data]
 
@@ -330,11 +354,13 @@ def main():
     d.subdivide(3)
     d.cluster(10000)
     mesh_original = d.create_mesh()
-    # plotter.add_mesh(mesh_original, show_edges=True, color="red")
+    plotter.add_mesh(mesh_original, show_edges=True, color="red")
 
+    start_time = timer()
     print("Cropping surface around saddle point...")
-    points_3mm_cropped = crop_with_radius(saddle_point, mesh_fitted, points, radius=3)
+    points_3mm_cropped = crop_with_radius_euclidean(saddle_point, points, radius=3)
     reoriented_surface = np.array([point+shift_vector for point in points_3mm_cropped])
+    print('Time taken: {}s'.format(timer()-start_time))
     print(shift_vector)
     print(points_3mm_cropped[0])
     print(reoriented_surface[0])
@@ -345,6 +371,7 @@ def main():
     points_3mm_cropped = (pv._vtk.vtk_to_numpy(mesh_3mm.GetPoints().GetData())).astype('f')
     points_3mm_cropped = np.array([np.array(point) for point in points_3mm_cropped])
 
+    start_time = timer()
     print("Converting cropped points to parametrized coordinate system....")
     s_data = []
     t_data = []
@@ -355,11 +382,13 @@ def main():
         s_data.append(solution[0][0])
         t_data.append(solution[0][1])
     parametrized_data = np.c_[s_data, t_data]
+    print('Time taken: {}s'.format(timer()-start_time))
 
     # Get saddle point on original surface rather than polynomial.
     saddle_index = mesh_3mm.find_closest_point(saddle_point)
     saddle_point = points_3mm_cropped[saddle_index]
 
+    start_time = timer()
     print("Computing curvatures across surface...")
     saddle_normal = np.array([normal[0].subs([(s, parametrized_data[saddle_index][0]), (t, parametrized_data[saddle_index][1])]),
                      normal[1].subs([(s, parametrized_data[saddle_index][0]), (t, parametrized_data[saddle_index][1])]),
@@ -368,19 +397,21 @@ def main():
     curvatures_3mm = compute_gradient_fields_normal_method(normal, saddle_normal, parametrized_data, plotter, points_3mm_cropped, shift_vector)
 
     curvatures_3mm_sorted = sorted(curvatures_3mm)
+    print('Time taken: {}s'.format(timer()-start_time))
     
     # min_curvature_point = np.array([0, 0, 0])
     max_curvature_vector = np.array([0, 0, 0])
     min_curvature_vector = np.array([0, 0, 0])
 
     # Find search sites to search for maximum and minimum curvature directions
+    start_time = timer()
     print("Finding relevant search sites...")
     min_search_sites = []
     prev_index = -1
     for curvature in curvatures_3mm_sorted:
         if len(min_search_sites) > 2:
             break
-        index = curvatures_3mm.index(curvature)
+        index = np.where(curvatures_3mm == curvature)[0]
         if prev_index == -1:
             prev_index = index
             min_search_sites.append(curvatures_3mm_sorted.index(curvature))
@@ -394,7 +425,7 @@ def main():
     for curvature in reversed(curvatures_3mm_sorted):
         if len(max_search_sites) > 2:
             break
-        index = curvatures_3mm.index(curvature)
+        index = np.where(curvatures_3mm == curvature)[0]
         if prev_index == -1:
             prev_index = index
             max_search_sites.append(curvatures_3mm_sorted.index(curvature))
@@ -402,16 +433,17 @@ def main():
         dist = np.dot(dist, dist)
         if dist > 0.0625:
             max_search_sites.append(curvatures_3mm_sorted.index(curvature))
-
+    print('Time taken: {}s'.format(timer()-start_time))
 
     # Compute minimum curvature
     print("Computing direction of minimum curvature...")
+    start_time = timer()
     min_curvature = 9999
     for search_site in min_search_sites:
         for idx in range(10):
             # find minimum average curvature along a direction.
             average_curvature = 0
-            min_index = curvatures_3mm.index(curvatures_3mm_sorted[idx + search_site])
+            min_index = np.where(curvatures_3mm == curvatures_3mm_sorted[idx + search_site])[0]
             path2min = pv._vtk.vtk_to_numpy(mesh_3mm.geodesic(saddle_index, min_index).GetPoints().GetData())
             if len(path2min) < 5:
                 continue
@@ -426,16 +458,17 @@ def main():
             if(average_curvature<min_curvature):
                 min_curvature = average_curvature
                 min_curvature_vector = direction_vector
-    
+    print('Time taken: {}s'.format(timer()-start_time))
 
     # Compute maximum curvature
+    start_time = timer()
     print("Computing direction of maximum curvature...")
     max_curvature = -9999
     for search_site in max_search_sites:
         for idx in range(10):
             # find maximum average curvature along a direction.
             average_curvature = 0
-            max_index = curvatures_3mm.index(curvatures_3mm_sorted[search_site-idx])
+            max_index = np.where(curvatures_3mm == curvatures_3mm_sorted[idx + search_site])[0]
             path2max = pv._vtk.vtk_to_numpy(mesh_3mm.geodesic(saddle_index, max_index).GetPoints().GetData())
             if len(path2max) < 5:
                 continue
@@ -449,6 +482,7 @@ def main():
             if(average_curvature>max_curvature):
                 max_curvature = average_curvature
                 max_curvature_vector = direction_vector
+    print('Time taken: {}s'.format(timer()-start_time))
 
     # close estimate of max curvature pricipal direction (along surface)
     direction_k = np.array(max_curvature_vector)
@@ -515,9 +549,11 @@ def main():
 
     cloud = pv.PolyData(reoriented_surface)
     reoriented_surface = cloud.delaunay_2d()
+    plotter.add_mesh(reoriented_surface, show_edges=False)
     plotter.add_mesh(reoriented_surface, scalars=curvatures_3mm, show_edges=False)
 
-    # plotter.add_mesh(mesh_original, show_edges=True, color="red")
+    plotter.add_mesh(mesh_original, show_edges=True, color="red")
+    plotter.add_mesh(mesh_fitted, show_edges=True, color="blue")
     plotter.add_points(np.array([saddle_point]), render_points_as_spheres=True, point_size = 30, color="orange")
     # plotter.add_points(np.array([min_curvature_point]), render_points_as_spheres=True, point_size = 30, color="green")
     # plotter.add_points(np.array([max_curvature_point]), render_points_as_spheres=True, point_size = 30, color="yellow")
