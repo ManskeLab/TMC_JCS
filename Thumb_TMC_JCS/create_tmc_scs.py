@@ -19,11 +19,22 @@ from mpl_toolkits.mplot3d import Axes3D
 from matplotlib import cm
 
 import math
-
+import progressbar
 from timeit import default_timer as timer 
 
 def find_critical_points(crit, minimizer_bounds, data):
     crit_points = []
+
+    widgets = [' [',
+         progressbar.Timer(format= 'elapsed time: %(elapsed)s'),
+         '] ',
+           progressbar.Bar('*'),' (',
+           progressbar.ETA(), ') ',
+          ]
+    bar = progressbar.ProgressBar(max_value=len(x_guess),
+                                widgets=widgets).start()
+    i = 0
+
     for x_guess, y_guess in data:
         try:
             solution = scipy.optimize.minimize(crit, x0=(x_guess, y_guess), method = 'Nelder-Mead', bounds=minimizer_bounds,
@@ -38,6 +49,9 @@ def find_critical_points(crit, minimizer_bounds, data):
         except:
             pass
 
+        bar.update(i)
+        i += 1
+
     return crit_points
 
 def find_saddle_point(Hessian_det, crit_points, data):
@@ -45,6 +59,17 @@ def find_saddle_point(Hessian_det, crit_points, data):
     saddle_point = []
     min_diff = float("inf")
     x, y = sp.symbols('x y')
+
+    widgets = [' [',
+         progressbar.Timer(format= 'elapsed time: %(elapsed)s'),
+         '] ',
+           progressbar.Bar('*'),' (',
+           progressbar.ETA(), ') ',
+          ]
+    bar = progressbar.ProgressBar(max_value=len(crit_points),
+                                widgets=widgets).start()
+    i = 0
+
     for crit in crit_points:
         det = Hessian_det.subs([(x, crit[0]), (y, crit[1])])
         if(det < 0):
@@ -56,6 +81,9 @@ def find_saddle_point(Hessian_det, crit_points, data):
             if diff<min_diff and np.any(is_within_points):
                 min_diff = diff
                 saddle_point = crit
+
+        bar.update(i)
+        i += 1
     
     return saddle_point
 
@@ -63,6 +91,17 @@ def crop_with_radius_dijkstra(origin, mesh, points, radius=3):
     # crop around origin and return points within given radius
     points_cropped = []
     origin_index = mesh.find_closest_point(origin)
+
+    widgets = [' [',
+         progressbar.Timer(format= 'elapsed time: %(elapsed)s'),
+         '] ',
+           progressbar.Bar('*'),' (',
+           progressbar.ETA(), ') ',
+          ]
+    bar = progressbar.ProgressBar(max_value=len(points),
+                                widgets=widgets).start()
+    i = 0
+
     for point in points:
         # find distance to all points using dijkstras algorithm
         # and filter out points further than 3mm
@@ -79,11 +118,25 @@ def crop_with_radius_dijkstra(origin, mesh, points, radius=3):
         except:
             continue
 
+        bar.update(i)
+        i += 1
+
     return points_cropped
 
 def crop_with_radius_euclidean(origin, points, radius=3):
     # crop around origin and return points within given radius
     points_cropped = []
+
+    widgets = [' [',
+         progressbar.Timer(format= 'elapsed time: %(elapsed)s'),
+         '] ',
+           progressbar.Bar('*'),' (',
+           progressbar.ETA(), ') ',
+          ]
+    bar = progressbar.ProgressBar(max_value=len(points),
+                                widgets=widgets).start()
+    i = 0
+
     for point in points:
         # find distance to all points using euclidean measurements
         # and filter out points further than 3mm
@@ -92,12 +145,26 @@ def crop_with_radius_euclidean(origin, points, radius=3):
         if (distance < radius):
             points_cropped.append(point)
 
+        bar.update(i)
+        i += 1
+
     return points_cropped
 
 def compute_gradient_fields_parametrized(Gaussian_curvature, parametrized_points):
     # compute curvature accross fitted polynomial surface
     curvatures = []
     s, t = sp.symbols('s t')
+
+    widgets = [' [',
+         progressbar.Timer(format= 'elapsed time: %(elapsed)s'),
+         '] ',
+           progressbar.Bar('*'),' (',
+           progressbar.ETA(), ') ',
+          ]
+    bar = progressbar.ProgressBar(max_value=len(parametrized_points),
+                                widgets=widgets).start()
+    i = 0
+
     for point in parametrized_points:
         # det = Hessian_det.subs([(x, point[0]), (y, point[1])])
         # x_grad = fx.subs([(x, point[0]), (y, point[1])])
@@ -106,6 +173,9 @@ def compute_gradient_fields_parametrized(Gaussian_curvature, parametrized_points
         curvature = Gaussian_curvature.subs([(s, point[0]), (t, point[1])])
         curvatures.append(curvature)
         print(curvature)
+
+        bar.update(i)
+        i += 1
     
     return curvatures
 
@@ -113,6 +183,17 @@ def compute_gradient_fields(Hessian_det, fx, fy, points):
     # compute curvature accross fitted polynomial surface
     curvatures = []
     x, y = sp.symbols('x y')
+
+    widgets = [' [',
+         progressbar.Timer(format= 'elapsed time: %(elapsed)s'),
+         '] ',
+           progressbar.Bar('*'),' (',
+           progressbar.ETA(), ') ',
+          ]
+    bar = progressbar.ProgressBar(max_value=len(x_guess),
+                                widgets=widgets).start()
+    i = 0
+
     for point in points:
         det = Hessian_det.subs([(x, point[0]), (y, point[1])])
         x_grad = fx.subs([(x, point[0]), (y, point[1])])
@@ -121,6 +202,10 @@ def compute_gradient_fields(Hessian_det, fx, fy, points):
         # curvature = Gaussian_curvature.subs([(s, point[0]), (t, point[1])])
         curvatures.append(curvature)
         print(curvature)
+
+        bar.update(i)
+        i += 1
+        
     
     return curvatures
 
@@ -128,7 +213,18 @@ def compute_gradient_fields_normal_method(normal_func, saddle_normal, parametriz
     # compute curvature accross fitted polynomial surface
     angles = []
     s, t = sp.symbols('s t')
+    idx = 0
+
+    widgets = [' [',
+         progressbar.Timer(format= 'elapsed time: %(elapsed)s'),
+         '] ',
+           progressbar.Bar('*'),' (',
+           progressbar.ETA(), ') ',
+          ]
+    bar = progressbar.ProgressBar(max_value=len(parametrized_points),
+                                widgets=widgets).start()
     i = 0
+
     for point in parametrized_points:
         # det = Hessian_det.subs([(x, point[0]), (y, point[1])])
         # x_grad = fx.subs([(x, point[0]), (y, point[1])])
@@ -138,7 +234,7 @@ def compute_gradient_fields_normal_method(normal_func, saddle_normal, parametriz
                   normal_func[1].subs([(s, point[0]), (t, point[1])]),
                   normal_func[2].subs([(s, point[0]), (t, point[1])])], dtype=float)
         # print(np.dot(normal, saddle_normal))
-        arc = points[i] - saddle_normal
+        arc = points[idx] - saddle_normal
         arc_len = np.sqrt(np.dot(arc, arc))
         arc /= arc_len
 
@@ -150,7 +246,7 @@ def compute_gradient_fields_normal_method(normal_func, saddle_normal, parametriz
         #     normal = -1 * normal
 
         
-        dist_normal_moved = (points[i] + normal) - saddle_normal
+        dist_normal_moved = (points[idx] + normal) - saddle_normal
         dist_normal_moved = np.sqrt(np.dot(dist_normal_moved, dist_normal_moved))
 
         # change if normal was found on bottom of surface (180 deg - angle)
@@ -167,7 +263,9 @@ def compute_gradient_fields_normal_method(normal_func, saddle_normal, parametriz
         angles.append(angle)
 
         if(i % 2 == 0):
-            plotter.add_arrows(points[i]+shift_vector, normal, mag=0.2, color='orange')
+            plotter.add_arrows(points[idx]+shift_vector, normal, mag=0.2, color='orange')
+        idx += 1
+        bar.update(i)
         i += 1
     
     return np.array(angles)
@@ -225,6 +323,13 @@ def main():
     args = parser.parse_args()
     seg_path = args.seg_path
 
+    widgets = [' [',
+         progressbar.Timer(format= 'elapsed time: %(elapsed)s'),
+         '] ',
+           progressbar.Bar('*'),' (',
+           progressbar.ETA(), ') ',
+          ]
+
     # 1. VTK NII to VTKPOLYDATA
     
     # 2. extract articular surface (3D Slicer)
@@ -239,6 +344,7 @@ def main():
     x_data = point_list[:, 0]
     y_data = point_list[:, 1]
     z_data = point_list[:, 2]
+    points = np.c_[x_data, y_data, z_data]
 
     x_shift = np.median(x_data)
     y_shift = np.median(y_data)
@@ -375,12 +481,17 @@ def main():
     print("Converting cropped points to parametrized coordinate system....")
     s_data = []
     t_data = []
+    bar = progressbar.ProgressBar(max_value=len(points_3mm_cropped),
+                                widgets=widgets).start()
+    i = 0
     for i in range(len(points_3mm_cropped)):
         x_eq = sp.Eq(x_parametrized, points_3mm_cropped[i][0])
         y_eq = sp.Eq(y_parametrized, points_3mm_cropped[i][1])
         solution = sp.solve((x_eq, y_eq), (s, t))
         s_data.append(solution[0][0])
         t_data.append(solution[0][1])
+        bar.update(i)
+        i += 1
     parametrized_data = np.c_[s_data, t_data]
     print('Time taken: {}s'.format(timer()-start_time))
 
@@ -408,6 +519,9 @@ def main():
     print("Finding relevant search sites...")
     min_search_sites = []
     prev_index = -1
+    bar = progressbar.ProgressBar(max_value=len(curvatures_3mm_sorted),
+                                widgets=widgets).start()
+    i = 0
     for curvature in curvatures_3mm_sorted:
         if len(min_search_sites) > 2:
             break
@@ -419,9 +533,14 @@ def main():
         dist = np.dot(dist, dist)
         if dist > 0.0625:
             min_search_sites.append(curvatures_3mm_sorted.index(curvature))
+        bar.update(i)
+        i += 1
 
     max_search_sites = []
     prev_index = -1
+    bar = progressbar.ProgressBar(max_value=len(curvatures_3mm_sorted),
+                                widgets=widgets).start()
+    i = 0
     for curvature in reversed(curvatures_3mm_sorted):
         if len(max_search_sites) > 2:
             break
@@ -433,12 +552,17 @@ def main():
         dist = np.dot(dist, dist)
         if dist > 0.0625:
             max_search_sites.append(curvatures_3mm_sorted.index(curvature))
+        bar.update(i)
+        i += 1
     print('Time taken: {}s'.format(timer()-start_time))
 
     # Compute minimum curvature
     print("Computing direction of minimum curvature...")
     start_time = timer()
     min_curvature = 9999
+    bar = progressbar.ProgressBar(max_value=len(min_search_sites),
+                                widgets=widgets).start()
+    i = 0
     for search_site in min_search_sites:
         for idx in range(10):
             # find minimum average curvature along a direction.
@@ -458,12 +582,17 @@ def main():
             if(average_curvature<min_curvature):
                 min_curvature = average_curvature
                 min_curvature_vector = direction_vector
+        bar.update(i)
+        i += 1
     print('Time taken: {}s'.format(timer()-start_time))
 
     # Compute maximum curvature
     start_time = timer()
     print("Computing direction of maximum curvature...")
     max_curvature = -9999
+    bar = progressbar.ProgressBar(max_value=len(max_search_sites),
+                                widgets=widgets).start()
+    i = 0
     for search_site in max_search_sites:
         for idx in range(10):
             # find maximum average curvature along a direction.
@@ -482,6 +611,8 @@ def main():
             if(average_curvature>max_curvature):
                 max_curvature = average_curvature
                 max_curvature_vector = direction_vector
+        bar.update(i)
+        i += 1
     print('Time taken: {}s'.format(timer()-start_time))
 
     # close estimate of max curvature pricipal direction (along surface)
