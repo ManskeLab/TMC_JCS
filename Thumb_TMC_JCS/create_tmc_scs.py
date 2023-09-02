@@ -31,7 +31,7 @@ def find_critical_points(crit, minimizer_bounds, data):
            progressbar.Bar('*'),' (',
            progressbar.ETA(), ') ',
           ]
-    bar = progressbar.ProgressBar(max_value=len(x_guess),
+    bar = progressbar.ProgressBar(max_value=len(data),
                                 widgets=widgets).start()
     i = 0
 
