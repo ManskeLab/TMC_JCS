@@ -268,7 +268,7 @@ def compute_gradient_fields_normal_method(normal_func, saddle_normal, parametriz
         bar.update(i)
         i += 1
     
-    return np.array(angles)
+    return angles
 
 # def func(data, a,b,c,d,e,f,alpha):
 #     # ,g,h,i,j,k,l,m,n,o,h,i,j,k,l,m,n,o,p,q,r,s,t,u,
@@ -525,7 +525,7 @@ def main():
     for curvature in curvatures_3mm_sorted:
         if len(min_search_sites) > 2:
             break
-        index = np.where(curvatures_3mm == curvature)[0]
+        index = curvatures_3mm.index(curvature)
         if prev_index == -1:
             prev_index = index
             min_search_sites.append(curvatures_3mm_sorted.index(curvature))
@@ -545,7 +545,7 @@ def main():
     for curvature in reversed(curvatures_3mm_sorted):
         if len(max_search_sites) > 2:
             break
-        index = np.where(curvatures_3mm == curvature)[0]
+        index = curvatures_3mm.index(curvature)
         if prev_index == -1:
             prev_index = index
             max_search_sites.append(curvatures_3mm_sorted.index(curvature))
@@ -569,7 +569,7 @@ def main():
         for idx in range(10):
             # find minimum average curvature along a direction.
             average_curvature = 0
-            min_index = np.where(curvatures_3mm == curvatures_3mm_sorted[idx + search_site])[0]
+            min_index = curvatures_3mm.index(curvatures_3mm_sorted[idx + search_site])
             path2min = pv._vtk.vtk_to_numpy(mesh_3mm.geodesic(saddle_index, min_index).GetPoints().GetData())
             if len(path2min) < 5:
                 continue
@@ -599,7 +599,7 @@ def main():
         for idx in range(10):
             # find maximum average curvature along a direction.
             average_curvature = 0
-            max_index = np.where(curvatures_3mm == curvatures_3mm_sorted[idx + search_site])[0]
+            max_index = curvatures_3mm.index(curvatures_3mm_sorted[search_site-idx])
             path2max = pv._vtk.vtk_to_numpy(mesh_3mm.geodesic(saddle_index, max_index).GetPoints().GetData())
             if len(path2max) < 5:
                 continue
