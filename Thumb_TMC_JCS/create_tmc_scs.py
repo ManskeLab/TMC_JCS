@@ -530,7 +530,7 @@ def main():
             prev_index = index
             min_search_sites.append(curvatures_3mm_sorted.index(curvature))
         dist = points_3mm_cropped[index] - points_3mm_cropped[prev_index]
-        dist = dist.T
+        dist = dist.flatten()
         dist = np.dot(dist, dist)
         if dist > 0.0625:
             min_search_sites.append(curvatures_3mm_sorted.index(curvature))
@@ -550,7 +550,7 @@ def main():
             prev_index = index
             max_search_sites.append(curvatures_3mm_sorted.index(curvature))
         dist = points_3mm_cropped[index] - points_3mm_cropped[prev_index]
-        dist = dist.T
+        dist = dist.flatten()
         dist = np.dot(dist, dist)
         if dist > 0.0625:
             max_search_sites.append(curvatures_3mm_sorted.index(curvature))
