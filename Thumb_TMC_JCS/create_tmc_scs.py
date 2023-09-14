@@ -319,9 +319,11 @@ def func(data, c0,c1,c2,c3,c4,c5,c6,c7,c8,c9,c10,c11,c12,c13,c14,c15,c16,c17,c18
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("seg_path", type=str, help="Bone segmentation (STL file)")
+    parser.add_argument("show_figure", type=int, nargs='?', default=0, help="Show figures after finishing computation.")
 
     args = parser.parse_args()
     seg_path = args.seg_path
+    show_figure_flag = args.show_figure
 
     widgets = [' [',
          progressbar.Timer(format= 'elapsed time: %(elapsed)s'),
@@ -690,7 +692,9 @@ def main():
     plotter.add_points(np.array([saddle_point]), render_points_as_spheres=True, point_size = 30, color="orange")
     # plotter.add_points(np.array([min_curvature_point]), render_points_as_spheres=True, point_size = 30, color="green")
     # plotter.add_points(np.array([max_curvature_point]), render_points_as_spheres=True, point_size = 30, color="yellow")
-    plotter.show()
+
+    if show_figure_flag:
+        plotter.show()
 
 if __name__ == "__main__":
     main()
