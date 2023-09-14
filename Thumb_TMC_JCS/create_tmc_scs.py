@@ -270,6 +270,27 @@ def compute_gradient_fields_normal_method(normal_func, saddle_normal, parametriz
     
     return angles
 
+def write_cs_to_txt(origin, i, j, k, filename, output_dir='./'):
+    file_dir = os.path.join(output_dir, filename)
+    f = open(file_dir, 'w')
+
+    f.write('Saddle point [x, y, z]:')
+    f.write('\n')
+
+    f.write("[{}, {}, {}]".format(origin[0], origin[1], origin[2]))
+    f.write('\n')
+    f.write('\n')
+
+    f.write("Directional unit vectors:")
+    f.write('\n')
+    f.write("I: [{}, {}, {}]".format(i[0], i[1], i[2]))
+    f.write('\n')
+    f.write("J: [{}, {}, {}]".format(j[0], j[1], j[2]))
+    f.write('\n')
+    f.write("K: [{}, {}, {}]".format(k[0], k[1], k[2]))
+
+    f.close()
+
 # def func(data, a,b,c,d,e,f,alpha):
 #     # ,g,h,i,j,k,l,m,n,o,h,i,j,k,l,m,n,o,p,q,r,s,t,u,
 #     # 5th order polynomial
@@ -695,6 +716,8 @@ def main():
 
     if show_figure_flag:
         plotter.show()
+
+    if 
 
 if __name__ == "__main__":
     main()
